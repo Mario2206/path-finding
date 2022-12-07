@@ -2,6 +2,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  color: #282c34;
 }
 
 . App {
@@ -39,10 +40,15 @@
   height: 100vh;
   width: 100vw;
 }
-
+.listing-wrapper {
+  width: 20vw;
+  display: flex;
+  flex-direction: column;
+  background-color: ghostwhite;
+}
 .listing {
   padding: 10px;
-  width: 20vw;
+  flex: 1;
 }
 
 .listing h2 {
@@ -55,6 +61,8 @@
   align-items: stretch;
   padding-top: 30px;
   gap: 10px;
+  height: 60vh;
+  overflow-y: auto;
 }
 .map-wrapper {
   width: 60vw;
@@ -68,16 +76,52 @@
 }
 
 .chat {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 15vw;
-  height: 15vw;
+  width: 100%;
+  height: 30vh;
+  z-index: 10000;
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
 }
-
+.chat-body {
+  flex: 1;
+  overflow: auto;
+  padding: 5px;
+}
+.chat-body-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.chat-body-item p{
+  line-break: anywhere;
+}
+.chat-body-date {
+  opacity: 0.8;
+  font-size: 13px;
+  align-self: flex-end;
+}
+.chat-input {
+  padding: 5px;
+}
+.chat-input input {
+  padding: 5px;
+  width: 100%;
+}
 .action-btn {
   padding: 15px;
   width: 100%;
+  background-color: #A36BDB;
+  border:none;
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+.action-btn-active {
+  background-color: #282c34;
 }
 .user-marker {
   background-color: transparent;
@@ -94,11 +138,79 @@
   border-radius: 20px;
   margin-top: 10px;
 }
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+
+.map-header--time {
+  font-weight: bold;
+}
+
+.user-card {
+  background-color: #282c34;
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.user-card * {
+  color: white;
+}
+
+.user-card--row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sign-form {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background-color: ghostwhite;
+}
+
+.sign-form--header {
+  padding: 20px;
+}
+
+.sign-form--form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background-color: white;
+  border: 2px solid;
+  border-radius: 20px;
+  width: 40vw;
+}
+.sign-form--footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.sign-form--input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.sign-form--input-group label {
+  background-color: #282c34;
+  color: white;
+  padding: 5px;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  font-size: 12px;
+}
+.sign-form--input-group input {
+  padding: 5px;
+  width: 100%;
 }

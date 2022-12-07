@@ -1,17 +1,18 @@
-import Leaflet from "leaflet";
 
-export type ListItem = {
+export type SpatialItem = {
   id: string
   name: string
   coordinates: {
     lng: number,
     lat: number
   }
-  marker?: Leaflet.Marker
 }
 
-export type User = ListItem & {
+export type User = SpatialItem & {
   color: string
   isMe?: boolean
   restaurant: string
+  departureTime: Date
+  remainingTime: number
 }
+

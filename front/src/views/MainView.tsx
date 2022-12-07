@@ -1,108 +1,96 @@
-import React, {useEffect, useReducer, useState} from "react";
-import {ListItem, User} from "../types/types";
+import React, {useEffect, useState} from "react";
+import {SpatialItem, User} from "../types/items";
 import {ActionButton} from "../components/ActionButton";
-import {socket} from "../tools/socket";
-import {FAKE_RESTAURANTS, FAKE_USERS, DEFAULT_MEETING_POSITION, USER_SPEED} from "../constants/data";
 import {useMap} from "../hooks/map";
 import {FLAG_ICON, getUserIcon} from "../constants/map.icons";
-import {LatLngLiteral, LeafletEvent} from "leaflet";
-import {DistanceCalculator} from "../tools/distance.calculator";
+import Leaflet, {LeafletEvent} from "leaflet";
 import {formatDateToDayScope} from "../tools/date.formatter";
+import {getSocket} from "../tools/socket";
+import {ChatBox} from "../components/ChatBox";
+import {useMessages} from "../hooks/message";
+import {useUsers} from "../hooks/users";
+import {useRoom} from "../hooks/room";
+import {UserCard} from "../components/UserCard";
 
-enum UserActions {
-  SET_ALL,
-  UPDATE
-}
-
-const userReducer = (state: User[], action: { type: UserActions, value: User | User[] }) => {
-  switch (action.type) {
-    case UserActions.SET_ALL:
-      return [...action.value as User[]]
-
-    case UserActions.UPDATE:
-      const userIndex = state.findIndex(user => user.id === (action.value as User).id)
-      if (userIndex === -1) return state
-      state[userIndex] = action.value as User
-      return [...state]
-  }
-}
+const userlayerGroup = Leaflet.layerGroup()
+const restaurantLayerGroup = Leaflet.layerGroup()
+const destinationLayerGroup = Leaflet.layerGroup()
 
 export const MainView = () => {
-  const [restaurants, setRestaurants] = useState<ListItem[]>([])
-  const [users, dispatchUser] = useReducer(userReducer, [])
-  const [destination, setDestination] = useState<LatLngLiteral>(DEFAULT_MEETING_POSITION)
+  const users = useUsers(state => state.users)
+  const updateUser = useUsers(state => state.update)
+  const activeUser = useUsers(state => state.activeUser)
+  const {processMessage, messages} = useMessages(state => ({
+    processMessage: state.processMessage,
+    messages: state.messages
+  }))
+  const {destination, room, setDestination, meetingTime, restaurants} = useRoom(state => ({
+    destination: state.destination,
+    room: state.room,
+    setDestination: state.setDestination,
+    meetingTime: state.meetingTime,
+    restaurants: state.restaurants
+  }))
 
-  const [roomName, setRoomName] = useState("")
-  const [departureTime, setDepartureTime] = useState<Date>()
-  const [meetingTime, setMeetingTime] = useState(new Date())
-
-  const {mapElementRef, mapRef, addMarker, clearLayers, drawPath} = useMap()
+  const {mapElementRef, mapRef, addMarker, clearPath, drawPath} = useMap()
 
   const onDragUserMarker = (user: User, event: LeafletEvent) => {
-    user.coordinates =  event.target.getLatLng()
-    dispatchUser({type: UserActions.UPDATE, value: user})
+    user.coordinates = event.target.getLatLng()
+    updateUser(user)
+    getSocket().emit("update-user", {coordinates: user.coordinates})
+  }
+
+  const onDragDestination = (e: LeafletEvent) => {
+    setDestination(e.target.getLatLng())
+    getSocket().emit("update-destination", e.target.getLatLng())
   }
 
   const drawUserPath = () => {
-    clearLayers("path")
+    clearPath()
     users.forEach((user, index) => {
         const restaurant = restaurants.find(restaurant => restaurant.id === user.restaurant)
-        if(!restaurant) return
+        if (!restaurant) return
         drawPath([user.coordinates, restaurant.coordinates, destination], user.color)
       }
     )
   }
 
   const drawRestaurantMarkers = () => {
-    clearLayers("restaurant")
+    restaurantLayerGroup.eachLayer(layer => layer.remove())
     restaurants.forEach(restaurant => {
-      addMarker(restaurant.coordinates, {title: restaurant.name, markerType: "restaurant"})
+      const marker = addMarker(restaurant.coordinates, {title: restaurant.name})
+      restaurantLayerGroup.addLayer(marker)
     })
   }
 
   const drawUserMarkers = () => {
-    clearLayers("user")
+    userlayerGroup.eachLayer(layer => layer.remove())
     users.forEach(user => {
-      addMarker(
+      const marker = addMarker(
         user.coordinates,
-        {title: user.name, markerType: "user", icon: getUserIcon(user.color), draggable: user.isMe}
-      ).on("dragend", (e) => onDragUserMarker(user, e))
+        {title: user.name, icon: getUserIcon(user.color), draggable: user.isMe}
+      )
+        .on("dragend", (e) => onDragUserMarker(user, e))
+
+      userlayerGroup.addLayer(marker)
     })
   }
 
   const drawDestinationMarker = () => {
-    clearLayers("meeting")
-    addMarker(destination, {title: "Meeting", markerType: "meeting", icon: FLAG_ICON, draggable: true})
-      .on("dragend", (e) => {
-          setDestination(e.target.getLatLng())
-      })
+    destinationLayerGroup.eachLayer(l => l.remove())
+    const destinationMarker = addMarker(destination, {title: "Meeting", icon: FLAG_ICON, draggable: true})
+      .on("dragend", (e) => onDragDestination(e))
+    destinationLayerGroup.addLayer(destinationMarker)
   }
 
-  const getDepartureTime = () => {
+
+  const onClickRestaurant = (restaurant: SpatialItem) => {
     const user = users.find(user => user.isMe)
-    const restaurant = restaurants.find(restaurant => restaurant.id === user?.restaurant)
-    if (!user || !restaurant) return
-    const calculator1 = new DistanceCalculator(user.coordinates, restaurant.coordinates)
-    const calculator2 = new DistanceCalculator(restaurant.coordinates, destination)
-    calculator1.computeDistance()
-    calculator2.computeDistance()
-    const duration = calculator1.computeDuration(USER_SPEED) + calculator2.computeDuration(USER_SPEED)
-    const newDepartureTime = meetingTime.getTime() - duration
-    setDepartureTime(new Date(newDepartureTime))
+    if (!user) return
+    user.restaurant = restaurant.id
+    updateUser(user)
+    getSocket().emit("update-user", {restaurant: user.restaurant})
   }
-
-  useEffect(() => {
-    setRestaurants(FAKE_RESTAURANTS)
-    setRoomName("Room 52")
-    dispatchUser({type: UserActions.SET_ALL, value: FAKE_USERS})
-  }, [])
-
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Front connected")
-    })
-  }, [])
-
 
   useEffect(() => {
     if (!mapRef) return
@@ -117,7 +105,6 @@ export const MainView = () => {
   useEffect(() => {
     if (!mapRef || !users.length || !restaurants.length) return
     drawUserPath()
-    getDepartureTime()
   }, [restaurants, users, mapRef, destination])
 
   useEffect(() => {
@@ -125,31 +112,49 @@ export const MainView = () => {
     drawDestinationMarker()
   }, [destination, mapRef])
 
+
   return (
     <div className="main-view">
-      <div id="listing-restau" className="listing">
+      <div id="listing-restau" className="listing-wrapper listing">
         <h2>Restaurants</h2>
         <div className="listing--list">
           {
-            restaurants.map(restaurant => <ActionButton key={restaurant.id} label={restaurant.name}/>)
+            restaurants.map(
+              restaurant =>
+                <ActionButton
+                  key={restaurant.id}
+                  label={restaurant.name}
+                  onClick={() => onClickRestaurant(restaurant)}
+                  isActive={activeUser?.restaurant === restaurant.id}
+                />
+            )
           }
         </div>
       </div>
       <div className="map-wrapper">
         <div className="map-header">
-          Lunch at {formatDateToDayScope(meetingTime)} : You should go at {departureTime ? formatDateToDayScope(departureTime) : "..."}
+          Lunch at <span className="map-header--time">{formatDateToDayScope(meetingTime)}</span> : You should go
+          at <span className="map-header--time">{activeUser?.departureTime ? formatDateToDayScope(activeUser.departureTime) : "..."}</span>
         </div>
-        <div id="chat" className={"chat"}></div>
         <div id="map" className={"map"} ref={mapElementRef}/>
       </div>
-      <div id="listing-room" className={"listing"}>
-        <h2>{roomName}</h2>
-        <div className="listing--list">
-          {
-            users.map(user => <ActionButton key={user.id} label={user.name}/>)
-          }
+      <div className={"listing-wrapper"}>
+        <div id="listing-room" className={"listing"}>
+          <h2>{room}</h2>
+          <div className="listing--list">
+            {
+              users.map(user =>
+                <UserCard
+                key={user.id}
+                user={user}
+                restaurant={restaurants.find(rest => rest.id === user.restaurant)?.name || ""}
+              />)
+            }
+          </div>
         </div>
+        <ChatBox messages={messages} processMessage={processMessage}/>
       </div>
+
     </div>
   );
 }
