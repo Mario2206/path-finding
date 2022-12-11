@@ -1,7 +1,6 @@
 import {Server} from "socket.io"
 import express from "express"
 import * as http from "http";
-import cors from "cors"
 import {UserManager} from "./utils/UserManager";
 import {CommandManager} from "./utils/CommandManager";
 import {Command} from "./utils/Command";
@@ -83,7 +82,10 @@ export function application () {
 
     socket.on("update-destination", (destination) => {
       const user = userManager.getById(socket.id)
-      if(!user) return
+      const room = roomManager.getRoomByName(user?.room || "")
+      if(!user || !room) return
+      room.destination = destination
+      roomManager.update(room)
       socket.broadcast.in(user.room).emit("update-destination", destination)
     })
 

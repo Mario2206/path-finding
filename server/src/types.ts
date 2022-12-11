@@ -23,4 +23,8 @@ export type Room = {
   name: string
   meetingTime: number
   restaurants: Restaurant[]
+  destination: {
+    lng: number,
+    lat: number
+  }
 }

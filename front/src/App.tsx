@@ -70,9 +70,10 @@ function App() {
         })
       })
 
-      socket.on("update-room-data", ({meetingTime, restaurants}) => {
+      socket.on("update-room-data", ({meetingTime, restaurants, destination}) => {
         meetingTime && setMeetingTime(meetingTime)
         restaurants && setRestaurants(restaurants)
+        destination && setDestination(destination)
       })
 
       socket.emit("join-room", {username, room})
